@@ -353,7 +353,7 @@
             <span class="input-prefix">$</span>
             <input id="utmValue" type="number" value="68648" min="1" step="1" class="">
           </div>
-          <span class="help-text"><span class="live-dot"></span>Actualiza mensualmente en sii.cl</span>
+          <span class="help-text"><span class="live-dot"></span>Actualizado automáticamente vía API</span>
         </div>
         <div class="field">
           <label for="ufValue">Valor UF (CLP) — referencial</label>
@@ -361,7 +361,12 @@
             <span class="input-prefix">$</span>
             <input id="ufValue" type="number" value="39200" min="1" step="1">
           </div>
-          <span class="help-text">Disponible en cmfchile.cl</span>
+          <span class="help-text">Actualizado automáticamente vía API</span>
+        </div>
+        <div class="field full" style="margin-top:4px">
+          <div id="apiBadge" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:6px 14px;border-radius:999px;background:#fef9c3;color:#854d0e;transition:all .5s;border:1px solid #fde68a">
+            ⟳ Conectando a mindicador.cl…
+          </div>
         </div>
       </div>
 
@@ -825,7 +830,32 @@ document.querySelectorAll("input, select").forEach(el => {
 });
 
 renderTramos();
-render();
+
+// ─── API mindicador.cl ─────────────────────────────────────────────────────
+async function fetchIndicadores() {
+  const badge = document.getElementById("apiBadge");
+  if (badge) { badge.textContent = "⟳ Actualizando valores…"; badge.style.background="#fef9c3"; badge.style.color="#854d0e"; badge.style.borderColor="#fde68a"; }
+  try {
+    const res = await fetch("https://mindicador.cl/api", { signal: AbortSignal.timeout(9000) });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const d = await res.json();
+    if (d.utm && d.utm.valor) document.getElementById("utmValue").value = Math.round(d.utm.valor);
+    if (d.uf  && d.uf.valor)  document.getElementById("ufValue").value  = Math.round(d.uf.valor);
+    if (badge) {
+      const dolar = d.dolar ? " · USD $" + Math.round(d.dolar.valor).toLocaleString("es-CL") : "";
+      const euro  = d.euro  ? " · EUR $" + Math.round(d.euro.valor).toLocaleString("es-CL")  : "";
+      const now   = new Date().toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
+      badge.textContent = "✓ Valores en vivo · " + now + dolar + euro;
+      badge.style.background="#dcfce7"; badge.style.color="#166534"; badge.style.borderColor="#86efac";
+    }
+    render();
+  } catch(e) {
+    if (badge) { badge.textContent = "⚠ Sin conexión API · valores editables manualmente"; badge.style.background="#fef2f2"; badge.style.color="#991b1b"; badge.style.borderColor="#fca5a5"; }
+    console.warn("mindicador.cl:", e.message);
+    render();
+  }
+}
+fetchIndicadores();
 </script>
 </body>
 </html>
