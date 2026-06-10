@@ -226,6 +226,9 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
       <label for="ufH" style="margin-left:4px">UF $</label>
       <input id="ufH"  type="number" value="39200"  min="1" step="1">
     </div>
+    <div id="apiBadgeAPV" style="font-size:10px;font-weight:600;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.12);color:#b0c8de;border:1px solid rgba(255,255,255,.15);white-space:nowrap;transition:all .5s">
+      ⟳ Conectando…
+    </div>
   </div>
 </div>
 
@@ -828,9 +831,42 @@ document.getElementById("apvUF").addEventListener("input",()=>render());
 document.getElementById("pctAfp").addEventListener("input",()=>render());
 
 // ══════════════════════════════════════════════════════════
+// API mindicador.cl — valores en vivo
+// ══════════════════════════════════════════════════════════
+async function fetchIndicadores() {
+  const badge = document.getElementById("apiBadgeAPV");
+  const setAll = (utm, uf) => {
+    ["utmH","utmM"].forEach(id => document.getElementById(id).value = utm);
+    ["ufH","ufM"].forEach(id  => document.getElementById(id).value  = uf);
+  };
+  try {
+    const res = await fetch("https://mindicador.cl/api", { signal: AbortSignal.timeout(9000) });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const d = await res.json();
+    const utm = d.utm && d.utm.valor ? Math.round(d.utm.valor) : null;
+    const uf  = d.uf  && d.uf.valor  ? Math.round(d.uf.valor)  : null;
+    if (utm) setAll(utm, uf || 39200);
+    if (badge) {
+      const dolar = d.dolar ? " USD $" + Math.round(d.dolar.valor).toLocaleString("es-CL") : "";
+      const euro  = d.euro  ? " | EUR $" + Math.round(d.euro.valor).toLocaleString("es-CL")  : "";
+      const now   = new Date().toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
+      badge.textContent = "✓ En vivo " + now + dolar + euro;
+      badge.style.background = "rgba(22,163,74,.25)";
+      badge.style.color = "#86efac";
+      badge.style.borderColor = "rgba(134,239,172,.3)";
+    }
+    render();
+  } catch(e) {
+    if (badge) { badge.textContent = "⚠ API no disponible · manual"; badge.style.background="rgba(220,38,38,.2)"; badge.style.color="#fca5a5"; }
+    console.warn("mindicador.cl:", e.message);
+    render();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════
-render();
+fetchIndicadores();
 </script>
 </body>
 </html>
